@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 export default function VerifyOtp() {
-  const navigate = useNavigate();
   const location = useLocation();
-
   const email = location.state?.email || localStorage.getItem("otpEmail");
 
   const [otp, setOtp] = useState("");
@@ -27,7 +25,7 @@ export default function VerifyOtp() {
       const data = await res.json();
 
       alert(data.message || "OTP verified successfully");
-      localStorage.setItem("token", data.token);
+      localStorage.setItem("studentToken", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
       window.location.href = "/student/dashboard";
@@ -37,23 +35,24 @@ export default function VerifyOtp() {
   };
 
   return (
-    <div className="flex h-screen items-center justify-center">
-      <div className="bg-white shadow-lg p-6 rounded-lg w-80 text-center">
-        <h2 className="text-xl font-semibold mb-4">Verify OTP</h2>
-
-        <p className="text-sm text-gray-500 mb-3">OTP sent to {email}</p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="bg-white shadow-xl p-8 rounded-xl w-96 text-center">
+        <h2 className="text-2xl font-bold mb-2">Verify OTP</h2>
+        <p className="text-gray-500 mb-4">
+          Enter the code sent to your email
+        </p>
 
         <input
           type="text"
           placeholder="Enter OTP"
-          className="w-full border p-2 mb-3 rounded text-center"
+          className="w-full border border-gray-300 focus:ring-2 focus:ring-green-400 p-2 mb-3 rounded text-center text-lg tracking-widest"
           value={otp}
           onChange={(e) => setOtp(e.target.value)}
         />
 
         <button
           onClick={handleVerify}
-          className="w-full bg-green-600 text-white py-2 rounded"
+          className="w-full bg-green-600 hover:bg-green-700 transition text-white py-2 rounded-lg"
         >
           Verify
         </button>

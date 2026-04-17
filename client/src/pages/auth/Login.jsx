@@ -1,33 +1,31 @@
-import { auth, provider } from "../../firebase";
-import { signInWithPopup } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 
 export default function Login() {
   const navigate = useNavigate();
-  const handleGoogleLogin = async () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleEmailLogin = async () => {
     try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      const token = await user.getIdToken();
-
-      console.log("Firebase Token:", token);
-
-      const res = await fetch("http://localhost:4000/api/auth/google", {
+      const res = await fetch("http://localhost:4000/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include",
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await res.json();
 
-      console.log("Backend Response:", data);
+      if (!res.ok) {
+        alert(data.message);
+        return;
+      }
 
-      localStorage.setItem("token", data.token);
+      localStorage.setItem("studentToken", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
+
       window.location.href = "/student/dashboard";
     } catch (err) {
       console.log(err);
@@ -35,24 +33,59 @@ export default function Login() {
   };
 
   return (
-    <div className="flex h-screen items-center justify-center">
-  <div className="bg-white shadow-lg p-6 rounded-lg w-80 text-center">
-    
-    <button
-      onClick={handleGoogleLogin}
-      className="bg-blue-600 text-white px-6 py-3 rounded-lg w-full"
-    >
-      Continue with Google
-    </button>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="bg-white p-8 rounded-xl shadow-xl w-96 text-center">
+        <h2 className="text-2xl font-bold mb-2">Login</h2>
+        <p className="text-gray-500 mb-4">Welcome back 👋</p>
 
-    <p
-      className="text-blue-600 cursor-pointer mt-4"
-      onClick={() => navigate("/signup")}
-    >
-      New user? Signup
-    </p>
+        <input
+          type="email"
+          placeholder="Enter Email"
+          className="border border-gray-300 focus:ring-2 focus:ring-blue-400 outline-none p-2 w-full mb-3 rounded"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
 
-  </div>
-</div>
+        <input
+          type="password"
+          placeholder="Enter Password"
+          className="border border-gray-300 focus:ring-2 focus:ring-blue-400 outline-none p-2 w-full mb-3 rounded"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+
+        <button
+          onClick={handleEmailLogin}
+          className="bg-green-600 hover:bg-green-700 transition text-white px-6 py-2 rounded-lg w-full mb-3"
+        >
+          Login
+        </button>
+        <p
+          className="text-sm text-blue-600 cursor-pointer mt-2"
+          onClick={() => navigate("/forgot-password")}
+        >
+          Forgot Password?
+        </p>
+
+        <p className="text-sm mt-4 text-center">
+          Don't have an account?{" "}
+          <span
+            className="text-blue-600 cursor-pointer"
+            onClick={() => navigate("/signup")}
+          >
+            Create Account
+          </span>
+        </p>
+        <p className="text-sm mt-3 text-center text-gray-500">
+          Are you an admin?{" "}
+          <span
+            className="text-blue-600 cursor-pointer"
+            onClick={() => navigate("/admin/login")}
+          >
+            Admin Login
+          </span>
+        </p>
+      </div>
+    </div>
   );
 }

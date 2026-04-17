@@ -2,27 +2,46 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
+    fullName: {
+      type: String,
+      required: true,
+    },
+
     email: {
       type: String,
       required: true,
       unique: true,
     },
+
     password: {
       type: String,
       required: true,
     },
+
+    hostelName: String,
+    enrolmentNumber: {
+      type: String,
+      unique: true,
+    },
+    roomNumber: String,
+    phone: String,
+
     authProvider: {
       type: String,
-      default: "local", // or "google"
+      default: "local",
     },
-    name: String,
-    photo: String,
+
+    otp: String,
+    otpExpiry: Date,
+
     isVerified: {
       type: Boolean,
       default: false,
     },
-    otp: String,
-    otpExpires: Date,
+    messId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+    },
   },
   { timestamps: true },
 );

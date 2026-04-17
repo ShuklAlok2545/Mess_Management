@@ -3,6 +3,9 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
 import authRoutes from "./routes/authRoutes.js";
+import { authMiddleware } from "./middleware/authMiddleware.js";
+import mealPlanRoutes from "./routes/mealPlanRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 dotenv.config();
 
@@ -14,18 +17,23 @@ app.use(
     credentials: true,
   })
 );
-console.log("EMAIL:", process.env.EMAIL_USER);
-console.log("pass:", process.env.EMAIL_PASS);
 
 app.use(express.json());
 
-// app.get('/',(req,res)=>{
-//   //console.log(req.body);
-//   res.send('hi')
-// })
-
 // routes
 app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/meal", mealPlanRoutes);
+
+
+// 🔐 Protected Test Route
+app.get("/api/protected", authMiddleware, (req, res) => {
+  res.json({
+    message: "Protected route accessed",
+    user: req.user,
+  });
+});
+
 // DB connect
 mongoose
   .connect(process.env.MONGO_URI)

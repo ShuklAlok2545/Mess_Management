@@ -4,8 +4,12 @@ export default function Navbar() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem("user"));
-    setUser(storedUser);
+    const storedUser = localStorage.getItem("user");
+    if (storedUser && storedUser !== "undefined") {
+      setUser(JSON.parse(storedUser));
+    } else {
+      setUser(null);
+    }
   }, []);
 
   return (
@@ -25,16 +29,6 @@ export default function Navbar() {
           {user?.name || user?.email || "User"}
         </span>
       </div>
-      <button
-  onClick={() => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    window.location.href = "/login";
-  }}
-  className="text-sm bg-red-500 text-white px-3 py-1 rounded"
->
-  Logout
-</button>
     </div>
   );
 }
