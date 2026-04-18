@@ -1,78 +1,87 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import StudentLayout from "../../layouts/StudentLayout";
+import { useNavigate } from "react-router-dom";
 
 export default function Feedback() {
-  const getTodayDay = () =>
-    new Date().toLocaleString("en-US", { weekday: "long" });
-
+  const [meal, setMeal] = useState("");
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
-  const [comment, setComment] = useState("");
-  const [day, setDay] = useState(getTodayDay());
-  const [meal, setMeal] = useState("");
+  const [message, setMessage] = useState("");
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    setDay(getTodayDay());
-  }, []);
-
-  const handleSubmit = () => {
-    if (!meal || rating === 0) {
-      alert("Please select meal and rating before submitting.");
+  const handleSubmit = async () => {
+    if (!meal || rating === 0 || !message.trim()) {
+      alert("Please fill all fields");
       return;
     }
 
-    console.log({ day, meal, rating, comment });
+    try {
+      const token = localStorage.getItem("studentToken");
 
-    setDay(getTodayDay());
-    setMeal("");
-    setRating(0);
-    setComment("");
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/feedback/create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          type: "feedback",
+          message: `${meal} | ${rating}⭐ | ${message}`,
+        }),
+      });
 
-    alert("Feedback submitted!");
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.message);
+        return;
+      }
+
+      alert("Feedback submitted!");
+
+      setMeal("");
+      setRating(0);
+      setMessage("");
+    } catch (err) {
+      console.log(err);
+      alert("Error submitting feedback");
+    }
   };
 
   return (
     <StudentLayout>
-      <div className="max-w-xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">⭐ Feedback</h1>
-          <p className="text-gray-500">Tell us about your meal experience</p>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow space-y-6">
-          {/* Day Selection */}
+      <div className="max-w-2xl mx-auto px-4">
+        {/* 🔥 Header */}
+        <div className="flex justify-between items-center mb-8">
           <div>
-            <p className="font-medium mb-2">Select Day</p>
-            <select
-              value={day}
-              disabled
-              className="w-full border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option>Monday</option>
-              <option>Tuesday</option>
-              <option>Wednesday</option>
-              <option>Thursday</option>
-              <option>Friday</option>
-              <option>Saturday</option>
-              <option>Sunday</option>
-            </select>
-            <p className="text-sm text-gray-400 mt-1">
-              Auto-selected based on today
+            <h1 className="text-3xl font-bold">⭐ Feedback</h1>
+            <p className="text-gray-500 text-sm">
+              Share your experience about today's meals
             </p>
           </div>
 
+          {/* Premium Button */}
+          <button
+            onClick={() => navigate("/student/my-feedbacks")}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-700 hover:shadow-lg transition-all"
+          >
+            📜 History
+          </button>
+        </div>
+
+        {/* 🔥 Card */}
+        <div className="bg-white p-6 rounded-2xl shadow-md border space-y-6">
           {/* Meal Selection */}
           <div>
-            <p className="font-medium mb-2">Select Meal</p>
-            <div className="flex gap-4">
+            <p className="font-medium mb-2 text-gray-700">Select Meal</p>
+            <div className="flex gap-3">
               {["Breakfast", "Lunch", "Dinner"].map((item) => (
                 <button
                   key={item}
                   onClick={() => setMeal(item)}
-                  className={`px-4 py-2 border rounded-lg transition ${
+                  className={`px-4 py-2 rounded-lg border transition ${
                     meal === item
-                      ? "bg-blue-600 text-white"
+                      ? "bg-blue-600 text-white shadow"
                       : "hover:bg-gray-100"
                   }`}
                 >
@@ -84,7 +93,7 @@ export default function Feedback() {
 
           {/* Rating */}
           <div>
-            <p className="font-medium mb-2">Rate your meal</p>
+            <p className="font-medium mb-2 text-gray-700">Rate your meal</p>
             <div className="flex gap-2 text-3xl cursor-pointer">
               {[1, 2, 3, 4, 5].map((star) => (
                 <span
@@ -104,27 +113,21 @@ export default function Feedback() {
             </div>
           </div>
 
-          {/* Comment */}
+          {/* Message */}
           <div>
-            <p className="font-medium mb-2">Additional Comments</p>
+            <p className="font-medium mb-2 text-gray-700">Comments</p>
             <textarea
-              placeholder="Optional: tell us more..."
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              className="w-full border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              rows="3"
+              placeholder="Write your feedback..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className="w-full border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
             />
           </div>
 
-          {/* Button */}
+          {/* Submit */}
           <button
             onClick={handleSubmit}
-            disabled={!meal || rating === 0}
-            className={`w-full py-3 rounded-lg font-medium transition ${
-              !meal || rating === 0
-                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                : "bg-blue-600 text-white hover:bg-blue-700"
-            }`}
+            className="w-full bg-blue-600 text-white py-3 rounded-lg shadow-md hover:bg-blue-700 hover:shadow-lg transition-all font-medium"
           >
             Submit Feedback
           </button>

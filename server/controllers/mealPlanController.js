@@ -1,9 +1,10 @@
 import MealPlan from "../models/MealPlan.js";
+import User from "../models/User.js";
 
 const isLocked = (date) => {
   const today = new Date();
   const mealDate = new Date(date);
-  // today.setDate(today.getDate() - 2);
+  today.setDate(today.getDate() + 1);
 
   today.setHours(0, 0, 0, 0);
   mealDate.setHours(0, 0, 0, 0);
@@ -17,11 +18,25 @@ const isLocked = (date) => {
 export const setMealPlan = async (req, res) => {
   try {
     const { userId, date, meal, status } = req.body;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
     // console.log("BODY:", req.body);
     // console.log("LOCK CHECK:", date, isLocked(date));
 
-    const locked = isLocked(date);
+    const today = new Date();
+    const mealDate = new Date(date);
+    // today.setDate(today.getDate() + 1);
+
+    today.setHours(0, 0, 0, 0);
+    mealDate.setHours(0, 0, 0, 0);
+
+    // lock AFTER previous day ends
+    mealDate.setDate(mealDate.getDate() - 1);
+
+    const locked = today >= mealDate;
 
     const meals = ["breakfast", "lunch", "dinner"];
 
@@ -32,7 +47,11 @@ export const setMealPlan = async (req, res) => {
 
       await MealPlan.findOneAndUpdate(
         { userId, date, meal: m },
-        { status: finalStatus, locked },
+        {
+          status: finalStatus,
+          locked: locked,
+          messId: user?.messId,
+        },
         { upsert: true, new: true },
       );
     }

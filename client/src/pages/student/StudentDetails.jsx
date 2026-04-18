@@ -7,7 +7,7 @@ export default function StudentDetails() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch("http://localhost:4000/api/auth/profile", {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/profile`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("studentToken")}`,
           },
@@ -79,7 +79,7 @@ export default function StudentDetails() {
 
             <div>
               <p className="text-gray-500 text-sm">messCode</p>
-              <p className="text-lg font-semibold">{user?.messId || "-"}</p>
+              <p className="text-lg font-semibold">{user?.messId?.messCode || "-"}</p>
             </div>
           </div>
         </div>

@@ -18,7 +18,7 @@ export default function AdminLogin() {
 
   const handleLogin = async () => {
     try {
-      const res = await fetch("http://localhost:4000/api/admin/login", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -71,6 +71,12 @@ export default function AdminLogin() {
         >
           Login
         </button>
+        <p
+          className="text-sm text-blue-600 cursor-pointer mt-2 text-center"
+          onClick={() => navigate("/admin/forgot-password")}
+        >
+          Forgot Password?
+        </p>
         <p className="text-sm mt-4 text-center">
           New admin?{" "}
           <span

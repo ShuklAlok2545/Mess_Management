@@ -8,9 +8,11 @@ export default function Sidebar() {
     { name: "Dashboard", path: "/admin/dashboard", icon: "📊" },
     { name: "Students", path: "/admin/students", icon: "👨‍🎓" },
     { name: "Reports", path: "/admin/reports", icon: "📅" },
+    { name: "Plan Menu", path: "/admin/meal-plans", icon:"💰" },
     { name: "Feedbacks", path: "/admin/feedbacks", icon: "📢" },
     { name: "Complaints", path: "/admin/complaints", icon: "📢" },
     { name: "Admin Details", path: "/admin/details", icon: "👤" },
+    { name: "Set Expense", path: "/admin/set-expense", icon:"💰" },
   ];
 
   const handleLogout = () => {

@@ -7,15 +7,14 @@ export default function StudentHistory() {
   const [meals, setMeals] = useState([]);
   const [student, setStudent] = useState(null);
   const [month, setMonth] = useState(() => {
-    const today = new Date();
-    return today.toISOString().slice(0, 7);
+    return new Date().toLocaleDateString("en-CA").slice(0, 7);
   });
 
   useEffect(() => {
     const fetchHistory = async () => {
       const url = month
-        ? `http://localhost:4000/api/admin/student-history/${id}?month=${month}`
-        : `http://localhost:4000/api/admin/student-history/${id}`;
+        ? `${import.meta.env.VITE_API_URL}/api/admin/student-history/${id}?month=${month}`
+        : `${import.meta.env.VITE_API_URL}/api/admin/student-history/${id}`;
       const res = await fetch(url, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
@@ -71,29 +70,11 @@ export default function StudentHistory() {
             <tr key={i} className="border-t text-center">
               <td>{m.date}</td>
 
-              <td
-                className={
-                  m.breakfast === "eat" ? "text-green-600" : "text-red-500"
-                }
-              >
-                {m.breakfast}
-              </td>
+              <td className="text-center">₹{m.breakfast}</td>
 
-              <td
-                className={
-                  m.lunch === "eat" ? "text-green-600" : "text-red-500"
-                }
-              >
-                {m.lunch}
-              </td>
+              <td className="text-center">₹{m.lunch}</td>
 
-              <td
-                className={
-                  m.dinner === "eat" ? "text-green-600" : "text-red-500"
-                }
-              >
-                {m.dinner}
-              </td>
+              <td className="text-center">₹{m.dinner}</td>
 
               <td className="font-bold">₹{m.total}</td>
             </tr>
@@ -107,7 +88,7 @@ export default function StudentHistory() {
         className="bg-green-500 text-white px-4 py-2 rounded"
         onClick={async () => {
           const res = await fetch(
-            `http://localhost:4000/api/admin/student-history-pdf/${id}?month=${month}`,
+            `${import.meta.env.VITE_API_URL}/api/admin/student-history-pdf/${id}?month=${month}`,
             {
               headers: {
                 Authorization: `Bearer ${localStorage.getItem("adminToken")}`,

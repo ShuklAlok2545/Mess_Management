@@ -22,7 +22,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchMealCount = async () => {
       try {
-        const res = await fetch("http://localhost:4000/api/admin/meal-count", {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/meal-count`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
           },

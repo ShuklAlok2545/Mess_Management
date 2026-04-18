@@ -5,6 +5,8 @@ import Menu from "../pages/student/Menu";
 import Feedback from "../pages/student/Feedback";
 import Complaints from "../pages/student/Complaints";
 import Attendance from "../pages/student/Attendance";
+import MyFeedbacks from "../pages/student/MyFeedbacks";
+import MyComplaints from "../pages/student/MyComplaints";
 
 import Login from "../pages/auth/Login";
 import Signup from "../pages/auth/Signup";
@@ -21,6 +23,10 @@ import AdminLogin from "../pages/admin/AdminLogin";
 import AdminDashboard from "../pages/admin/AdminDashboard";
 import AdminSignup from "../pages/admin/AdminSignup";
 import AdminDetails from "../pages/admin/AdminDetails";
+import AdminForgotPassword from "../pages/admin/AdminForgotPassword";
+import AdminResetPassword from "../pages/admin/AdminResetPassword";
+import SetExpense from "../pages/admin/SetExpense";
+
 
 import Students from "../pages/admin/Students";
 import MealPlans from "../pages/admin/MealPlans";
@@ -57,6 +63,16 @@ export default function AppRoutes() {
         />
 
         <Route
+          path="/student/my-feedbacks"
+          element={isAuthenticated ? <MyFeedbacks /> : <Navigate to="/" />}
+        />
+
+        <Route
+          path="/student/my-complaints"
+          element={isAuthenticated ? <MyComplaints /> : <Navigate to="/" />}
+        />
+
+        <Route
           path="/student/menu"
           element={isAuthenticated ? <Menu /> : <Navigate to="/" />}
         />
@@ -80,6 +96,8 @@ export default function AppRoutes() {
 
         <Route path="/admin/signup" element={<AdminSignup />} />
         <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/admin/forgot-password" element={<AdminForgotPassword />} />
+        <Route path="/admin/reset-password" element={<AdminResetPassword />} />
 
         <Route
           path="/admin/dashboard"
@@ -90,6 +108,14 @@ export default function AppRoutes() {
           }
         />
 
+        <Route
+          path="/admin/set-expense"
+          element={
+            <AdminProtectedRoute>
+              <SetExpense />
+            </AdminProtectedRoute>
+          }
+        />
         <Route
           path="/admin/meal-plans"
           element={

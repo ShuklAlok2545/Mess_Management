@@ -1,14 +1,16 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export default function Signup() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const prefilledMessCode = location.state?.messCode || "";
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     fullName: "",
     email: "",
     hostelName: "",
-    messCode: "",
+    messCode: prefilledMessCode,
     enrolmentNumber: "",
     roomNumber: "",
     phone: "",
@@ -48,7 +50,7 @@ export default function Signup() {
     }
 
     try {
-      const res = await fetch("http://localhost:4000/api/auth/signup", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/signup`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -154,17 +156,16 @@ export default function Signup() {
         )}
         {step === 2 && (
           <>
-            
-
             <input
               name="hostelName"
               placeholder="Hostel Name"
               className="input"
               onChange={handleChange}
             />
-            
+
             <input
               name="messCode"
+              value={form.messCode}
               placeholder="Enter Mess Code"
               className="w-full mb-3 p-2 border rounded"
               onChange={handleChange}
@@ -252,6 +253,15 @@ export default function Signup() {
             onClick={() => navigate("/login")}
           >
             Login
+          </span>
+        </p>
+        <p className="text-sm mt-3 text-center text-gray-500">
+          Are you an admin?{" "}
+          <span
+            className="text-blue-600 cursor-pointer"
+            onClick={() => navigate("/admin/login")}
+          >
+            Admin Login
           </span>
         </p>
       </div>

@@ -6,6 +6,11 @@ import authRoutes from "./routes/authRoutes.js";
 import { authMiddleware } from "./middleware/authMiddleware.js";
 import mealPlanRoutes from "./routes/mealPlanRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import feedbackRoutes from "./routes/feedbackRoutes.js";
+import complaintRoutes from "./routes/complaintRoutes.js";
+import billingRoutes from "./routes/billingRoutes.js";
+
+
 
 dotenv.config();
 
@@ -23,7 +28,10 @@ app.use(express.json());
 // routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/feedback", feedbackRoutes);
 app.use("/api/meal", mealPlanRoutes);
+app.use("/api/complaint", complaintRoutes);
+app.use("/api/billing", billingRoutes);
 
 
 // 🔐 Protected Test Route

@@ -5,6 +5,26 @@ import jwt from "jsonwebtoken";
 import MealPlan from "../models/MealPlan.js";
 import nodemailer from "nodemailer";
 import PDFDocument from "pdfkit";
+import DailyExpense from "../models/DailyExpense.js";
+import Menu from "../models/Menu.js";
+import mongoose from "mongoose";
+import {
+  sendOTPEmail,
+  sendApprovalEmail,
+  sendRejectionEmail,
+  sendDeleteEmail,
+} from "../utils/sendEmail.js";
+import Complaint from "../models/Complaint.js";
+import Feedback from "../models/Feedback.js";
+
+const allowedMesses = [
+  "Jhelum Mess",
+  "Jhelum Extension Mess",
+  "Indus Mess",
+  "Chenab Mess",
+  "PG Hostel Mess",
+  "Girls Mess",
+];
 
 const otpStore = new Map();
 
@@ -13,13 +33,27 @@ const otpStore = new Map();
 ========================= */
 export const sendAdminOtp = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, messName } = req.body;
+    // ✅ EMAIL VALIDATION
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@nitsri\.ac\.in$/;
+
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Invalid email format" });
+    }
 
     const existing = await Admin.findOne({ email });
     if (existing) {
       return res.status(400).json({ message: "Admin already exists" });
     }
 
+    // 🚫 Check if admin already exists for this mess
+    const existingMessAdmin = await Admin.findOne({ messName });
+
+    if (existingMessAdmin) {
+      return res.status(400).json({
+        message: "This mess already has an admin",
+      });
+    }
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     console.log(otp);
     otpStore.set(email, otp);
@@ -61,10 +95,20 @@ export const verifyAdminOtpAndSignup = async (req, res) => {
       otp,
     } = req.body;
 
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@nitsri\.ac\.in$/;
+
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Invalid email format" });
+    }
+
     const storedOtp = otpStore.get(email);
 
     if (!storedOtp || storedOtp !== otp) {
       return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    if (!allowedMesses.includes(messName)) {
+      return res.status(400).json({ message: "Invalid mess selected" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -150,11 +194,13 @@ export const getMealCount = async (req, res) => {
     const students = await User.find({ messId });
     const studentIds = students.map((s) => s._id);
 
-    const today = new Date().toISOString().split("T")[0];
+    const todayObj = new Date();
+    const today = todayObj.toLocaleDateString("en-CA");
 
-    const tomorrowDate = new Date();
-    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-    const tomorrow = tomorrowDate.toISOString().split("T")[0];
+    const tomorrowObj = new Date();
+    tomorrowObj.setDate(tomorrowObj.getDate() + 1);
+
+    const tomorrow = tomorrowObj.toLocaleDateString("en-CA");
 
     const todayMeals = await MealPlan.find({
       userId: { $in: studentIds },
@@ -216,7 +262,7 @@ export const getStudentsByAdmin = async (req, res) => {
     }
 
     const students = await User.find({ messId: adminId }).select(
-      "fullName email hostelName roomNumber enrolmentNumber phone",
+      "fullName email hostelName roomNumber enrolmentNumber phone isApproved",
     );
 
     res.json(students);
@@ -226,17 +272,142 @@ export const getStudentsByAdmin = async (req, res) => {
   }
 };
 
+export const approveStudent = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    const existingStudent = await User.findById(studentId);
+
+    if (!existingStudent || existingStudent.messId.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Not allowed" });
+    }
+
+    const student = await User.findByIdAndUpdate(
+      studentId,
+      { isApproved: true },
+      { new: true },
+    );
+
+    if (student) {
+      sendApprovalEmail(
+        student.email,
+        "Your mess account has been approved. You can now login.",
+      ).catch(() => {
+        console.log("Approval email failed, continuing...");
+      });
+    }
+
+    res.json({
+      message: "Student approved successfully",
+      student,
+    });
+  } catch (err) {
+    console.log("APPROVE ERROR:", err);
+    res.status(500).json({ message: "Error approving student" });
+  }
+};
+
+export const rejectStudent = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    const student = await User.findByIdAndDelete(studentId);
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    sendRejectionEmail(
+      student.email,
+      "Your mess registration has been rejected. Please contact admin.",
+    ).catch(() => {
+      console.log("Rejection email failed, continuing...");
+    });
+
+    res.json({ message: "Student rejected and removed" });
+  } catch (err) {
+    console.log("REJECT ERROR:", err);
+    res.status(500).json({ message: "Error rejecting student" });
+  }
+};
+
+export const deleteStudent = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    const student = await User.findById(studentId);
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    if (student.messId.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Not allowed" });
+    }
+
+    sendDeleteEmail(
+      student.email,
+      "Your mess account has been deleted by admin. If you think this is a mistake, please contact administration.",
+    ).catch(() => {
+      console.log("Delete email failed, continuing...");
+    });
+
+    // 🔥 NOW DELETE
+    await Promise.all([
+      MealPlan.deleteMany({ userId: studentId }),
+      Complaint.deleteMany({ userId: studentId }),
+      Feedback.deleteMany({ userId: studentId }),
+    ]);
+
+    await User.findByIdAndDelete(studentId);
+
+    res.json({ message: "Student deleted successfully" });
+  } catch (err) {
+    console.log("DELETE STUDENT ERROR:", err);
+    res.status(500).json({ message: "Error deleting student" });
+  }
+};
+
 export const getTodayReport = async (req, res) => {
   try {
     const adminId = req.user.id;
 
-    const today = new Date().toISOString().split("T")[0];
+    const todayObj = new Date();
+    const today = todayObj.toLocaleDateString("en-CA");
 
-    const PRICES = {
-      breakfast: 30,
-      lunch: 50,
-      dinner: 40,
-    };
+    const expense = await DailyExpense.findOne({
+      date: today,
+      messId: adminId,
+    });
+
+    if (!expense) return res.json([]);
+
+    const breakfastCount = await MealPlan.countDocuments({
+      date: today,
+      meal: "breakfast",
+      status: "eat",
+      messId: adminId,
+    });
+
+    const lunchCount = await MealPlan.countDocuments({
+      date: today,
+      meal: "lunch",
+      status: "eat",
+      messId: adminId,
+    });
+
+    const dinnerCount = await MealPlan.countDocuments({
+      date: today,
+      meal: "dinner",
+      status: "eat",
+      messId: adminId,
+    });
+
+    const breakfastRate =
+      breakfastCount > 0 ? expense.breakfastCost / breakfastCount : 0;
+
+    const lunchRate = lunchCount > 0 ? expense.lunchCost / lunchCount : 0;
+
+    const dinnerRate = dinnerCount > 0 ? expense.dinnerCost / dinnerCount : 0;
 
     const students = await User.find({ messId: adminId });
 
@@ -259,10 +430,19 @@ export const getTodayReport = async (req, res) => {
       };
 
       meals.forEach((m) => {
-        data[m.meal] = m.status;
-
         if (m.status === "eat") {
-          data.total += PRICES[m.meal];
+          if (m.meal === "breakfast") {
+            data.breakfast = breakfastRate;
+            data.total += breakfastRate;
+          }
+          if (m.meal === "lunch") {
+            data.lunch = lunchRate;
+            data.total += lunchRate;
+          }
+          if (m.meal === "dinner") {
+            data.dinner = dinnerRate;
+            data.total += dinnerRate;
+          }
         }
       });
 
@@ -280,18 +460,18 @@ export const getStudentHistory = async (req, res) => {
   try {
     const { studentId } = req.params;
     const { month } = req.query;
-    const today = new Date().toISOString().split("T")[0];
+
+    const today = new Date().toLocaleDateString("en-CA");
 
     let filter = { userId: studentId };
 
     if (month) {
       filter.date = { $regex: `^${month}` };
     }
-    console.log("Filter:", filter);
 
     const meals = await MealPlan.find(filter);
 
-    const lockedMeals = meals.filter((m) => m.date < today);
+    const lockedMeals = meals.filter((m) => m.date <= today);
 
     const student = await User.findById(studentId).select(
       "fullName enrolmentNumber",
@@ -299,38 +479,83 @@ export const getStudentHistory = async (req, res) => {
 
     const grouped = {};
 
-    const PRICES = {
-      breakfast: 30,
-      lunch: 50,
-      dinner: 40,
-    };
-
-    lockedMeals.forEach((m) => {
-      const date =
-        typeof m.date === "string"
-          ? m.date
-          : new Date(m.date).toISOString().split("T")[0];
+    for (const m of lockedMeals) {
+      const date = m.date;
 
       if (!grouped[date]) {
+        // 🔥 GET EXPENSE FOR THIS DATE
+        const expense = await DailyExpense.findOne({
+          date,
+          messId: m.messId,
+        });
+
+        if (!expense) continue;
+
+        // 🔥 COUNT STUDENTS FOR THIS DATE
+        const breakfastCount = await MealPlan.countDocuments({
+          date,
+          meal: "breakfast",
+          status: "eat",
+          messId: m.messId,
+        });
+
+        const lunchCount = await MealPlan.countDocuments({
+          date,
+          meal: "lunch",
+          status: "eat",
+          messId: m.messId,
+        });
+
+        const dinnerCount = await MealPlan.countDocuments({
+          date,
+          meal: "dinner",
+          status: "eat",
+          messId: m.messId,
+        });
+
+        const breakfastRate =
+          breakfastCount > 0 ? expense.breakfastCost / breakfastCount : 0;
+
+        const lunchRate = lunchCount > 0 ? expense.lunchCost / lunchCount : 0;
+
+        const dinnerRate =
+          dinnerCount > 0 ? expense.dinnerCost / dinnerCount : 0;
+
         grouped[date] = {
           date,
           name: student.fullName,
           enrolment: student.enrolmentNumber,
-          breakfast: "skip",
-          lunch: "skip",
-          dinner: "skip",
+          breakfast: 0,
+          lunch: 0,
+          dinner: 0,
           total: 0,
+          rates: {
+            breakfastRate,
+            lunchRate,
+            dinnerRate,
+          },
         };
       }
 
-      grouped[date][m.meal] = m.status;
+      const entry = grouped[date];
 
       if (m.status === "eat") {
-        grouped[date].total += PRICES[m.meal];
+        if (m.meal === "breakfast") {
+          entry.breakfast = entry.rates.breakfastRate;
+          entry.total += entry.rates.breakfastRate;
+        }
+        if (m.meal === "lunch") {
+          entry.lunch = entry.rates.lunchRate;
+          entry.total += entry.rates.lunchRate;
+        }
+        if (m.meal === "dinner") {
+          entry.dinner = entry.rates.dinnerRate;
+          entry.total += entry.rates.dinnerRate;
+        }
       }
-    });
+    }
 
-    const result = Object.values(grouped);
+    const result = Object.values(grouped).map(({ rates, ...rest }) => rest);
 
     res.json(result);
   } catch (err) {
@@ -351,8 +576,9 @@ export const downloadStudentHistoryPDF = async (req, res) => {
     }
 
     const meals = await MealPlan.find(filter);
-    const today = new Date().toISOString().split("T")[0];
-    const lockedMeals = meals.filter((m) => m.date < today);
+    const todayObj = new Date();
+    const today = todayObj.toLocaleDateString("en-CA");
+    const lockedMeals = meals.filter((m) => m.date < today + 1);
 
     const student = await User.findById(studentId).select(
       "fullName enrolmentNumber",
@@ -360,33 +586,75 @@ export const downloadStudentHistoryPDF = async (req, res) => {
 
     const grouped = {};
 
-    const PRICES = {
-      breakfast: 30,
-      lunch: 50,
-      dinner: 40,
-    };
-
-    lockedMeals.forEach((m) => {
+    for (const m of lockedMeals) {
       const date = m.date;
 
       if (!grouped[date]) {
+        const expense = await DailyExpense.findOne({
+          date,
+          messId: m.messId,
+        });
+
+        if (!expense) continue;
+
+        const breakfastCount = await MealPlan.countDocuments({
+          date,
+          meal: "breakfast",
+          status: "eat",
+          messId: m.messId,
+        });
+
+        const lunchCount = await MealPlan.countDocuments({
+          date,
+          meal: "lunch",
+          status: "eat",
+          messId: m.messId,
+        });
+
+        const dinnerCount = await MealPlan.countDocuments({
+          date,
+          meal: "dinner",
+          status: "eat",
+          messId: m.messId,
+        });
+
+        const breakfastRate =
+          breakfastCount > 0 ? expense.breakfastCost / breakfastCount : 0;
+
+        const lunchRate = lunchCount > 0 ? expense.lunchCost / lunchCount : 0;
+
+        const dinnerRate =
+          dinnerCount > 0 ? expense.dinnerCost / dinnerCount : 0;
+
         grouped[date] = {
           date,
-          breakfast: "skip",
-          lunch: "skip",
-          dinner: "skip",
+          breakfast: 0,
+          lunch: 0,
+          dinner: 0,
           total: 0,
+          rates: { breakfastRate, lunchRate, dinnerRate },
         };
       }
 
-      grouped[date][m.meal] = m.status;
+      const entry = grouped[date];
 
       if (m.status === "eat") {
-        grouped[date].total += PRICES[m.meal];
+        if (m.meal === "breakfast") {
+          entry.breakfast = entry.rates.breakfastRate;
+          entry.total += entry.rates.breakfastRate;
+        }
+        if (m.meal === "lunch") {
+          entry.lunch = entry.rates.lunchRate;
+          entry.total += entry.rates.lunchRate;
+        }
+        if (m.meal === "dinner") {
+          entry.dinner = entry.rates.dinnerRate;
+          entry.total += entry.rates.dinnerRate;
+        }
       }
-    });
+    }
 
-    const data = Object.values(grouped);
+    const data = Object.values(grouped).map(({ rates, ...rest }) => rest);
 
     // 📄 Create PDF
     const doc = new PDFDocument();
@@ -411,7 +679,7 @@ export const downloadStudentHistoryPDF = async (req, res) => {
 
     data.forEach((d) => {
       doc.text(
-        `${d.date} | B: ${d.breakfast} | L: ${d.lunch} | D: ${d.dinner} | ₹${d.total}`,
+        `${d.date} | ₹${d.breakfast} | ₹${d.lunch} | ₹${d.dinner} | Total: ₹${d.total}`,
       );
       grandTotal += d.total;
     });
@@ -423,5 +691,138 @@ export const downloadStudentHistoryPDF = async (req, res) => {
   } catch (err) {
     console.log("PDF ERROR:", err);
     res.status(500).json({ message: "Error generating PDF" });
+  }
+};
+
+export const setMenu = async (req, res) => {
+  try {
+    const { day, breakfast, lunch, dinner } = req.body;
+
+    const messId = new mongoose.Types.ObjectId(req.user.id);
+
+    const menu = await Menu.findOneAndUpdate(
+      { messId, day },
+      { breakfast, lunch, dinner },
+      { upsert: true, new: true },
+    );
+
+    res.json(menu);
+  } catch (err) {
+    console.log("SET MENU ERROR:", err);
+    res.status(500).json({ message: "Error setting menu" });
+  }
+};
+
+export const getMenu = async (req, res) => {
+  try {
+    const { day } = req.query;
+
+    const menu = await Menu.findOne({
+      day,
+      messId: new mongoose.Types.ObjectId(req.user.id),
+    });
+
+    res.json(menu || {});
+  } catch (err) {
+    console.log("GET MENU ERROR:", err);
+    res.status(500).json({ message: "Error fetching menu" });
+  }
+};
+
+export const getMenuForStudent = async (req, res) => {
+  try {
+    const { day, messId } = req.query;
+
+    if (!messId) {
+      return res.status(400).json({ message: "messId required" });
+    }
+
+    const menu = await Menu.findOne({
+      day,
+      messId: new mongoose.Types.ObjectId(messId),
+    });
+
+    res.json(menu || {});
+  } catch (err) {
+    console.log("GET MENU STUDENT ERROR:", err);
+    res.status(500).json({ message: "Error fetching menu" });
+  }
+};
+
+export const getMesses = async (req, res) => {
+  try {
+    const messes = await Admin.find().select("messName messCode");
+    res.json(messes);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching messes" });
+  }
+};
+
+export const adminForgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const admin = await Admin.findOne({ email });
+
+    if (!admin) {
+      return res.status(400).json({ message: "Admin not found" });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    admin.otp = otp;
+    admin.otpExpiry = Date.now() + 5 * 60 * 1000;
+    await admin.save();
+
+    await sendOTPEmail(email, otp);
+
+    // adminController.js
+    console.log("SAVING OTP:", otp);
+
+    const check = await Admin.findOne({ email });
+    console.log("DB AFTER SAVE:", check.otp);
+
+    res.json({ message: "OTP sent to email" });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Error sending OTP" });
+  }
+};
+
+export const adminResetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    const admin = await Admin.findOne({ email });
+
+    if (!admin) {
+      return res.status(400).json({ message: "Admin not found" });
+    }
+
+    const enteredOtp = String(otp).trim();
+
+    console.log("DB OTP:", admin.otp);
+    console.log("Entered OTP:", enteredOtp);
+
+    if (!admin.otp || admin.otp !== enteredOtp) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    if (admin.otpExpiry < Date.now()) {
+      return res.status(400).json({ message: "OTP expired" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    admin.password = hashedPassword;
+    admin.otp = null;
+    admin.otpExpiry = null;
+
+    await admin.save();
+
+    res.json({ message: "Password reset successful" });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Error resetting password" });
   }
 };

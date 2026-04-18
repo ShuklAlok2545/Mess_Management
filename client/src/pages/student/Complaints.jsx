@@ -1,33 +1,69 @@
 import { useState } from "react";
 import StudentLayout from "../../layouts/StudentLayout";
+import { useNavigate } from "react-router-dom";
 
 export default function Complaints() {
   const [title, setTitle] = useState("");
   const [type, setType] = useState("Food Quality");
   const [description, setDescription] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
-  const [showContacts, setShowContacts] = useState(false);
+  const [date, setDate] = useState(new Date().toLocaleDateString("en-CA"));
+  const navigate = useNavigate();
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim() || !description.trim()) {
       alert("Please fill all fields before submitting.");
       return;
     }
 
-    console.log({ type, title, description, date });
+    try {
+      const token = localStorage.getItem("studentToken");
 
-    alert("Complaint submitted!");
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/complaint/create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          category: type,
+          title,
+          description,
+          date,
+        }),
+      });
 
-    setType("Food Quality");
-    setTitle("");
-    setDescription("");
-    setDate(new Date().toISOString().split("T")[0]);
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.message);
+        return;
+      }
+
+      alert("Complaint submitted!");
+
+      // Reset form
+      setType("Food Quality");
+      setTitle("");
+      setDescription("");
+      setDate(new Date().toLocaleDateString("en-CA"));
+    } catch (err) {
+      console.log(err);
+      alert("Error submitting complaint");
+    }
   };
 
   return (
     <StudentLayout>
       <div className="max-w-3xl mx-auto px-4">
         {/* Header */}
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={() => navigate("/student/my-complaints")}
+            className="bg-red-600 text-white px-4 py-2 rounded-lg shadow hover:bg-red-700 transition"
+          >
+            View My Complaints →
+          </button>
+        </div>
         <div className="mb-6">
           <h1 className="text-3xl font-bold">🚨 Complaints</h1>
           <p className="text-gray-500">

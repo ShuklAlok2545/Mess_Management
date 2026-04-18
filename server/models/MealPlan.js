@@ -9,7 +9,7 @@ const mealPlanSchema = new mongoose.Schema(
     },
 
     date: {
-      type: String, 
+      type: String,
       required: true,
     },
 
@@ -29,12 +29,17 @@ const mealPlanSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    messId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      required: true,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 mealPlanSchema.index({ userId: 1, date: 1, meal: 1 }, { unique: true });
-
+mealPlanSchema.index({ date: 1, meal: 1, messId: 1 });
 
 export default mongoose.model("MealPlan", mealPlanSchema);
-

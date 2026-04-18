@@ -7,22 +7,21 @@ export default function Attendance() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   const months = [
-    "January","February","March","April","May","June",
-    "July","August","September","October","November","December",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
   ];
 
-  const prices = {
-    breakfast: 30,
-    lunch: 50,
-    dinner: 40,
-  };
-
-  const [bill, setBill] = useState({
-    breakfast: 0,
-    lunch: 0,
-    dinner: 0,
-    total: 0,
-  });
+  const [bill, setBill] = useState(0);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -36,17 +35,22 @@ export default function Attendance() {
         const monthString = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
 
         const res = await fetch(
-          `http://localhost:4000/api/meal/monthly?userId=${user._id}&month=${monthString}`
+          `${import.meta.env.VITE_API_URL}/api/meal/monthly?userId=${user._id}&month=${monthString}`,
         );
 
         const data = await res.json();
+
+        if (!Array.isArray(data)) {
+          setBill(0);
+          return;
+        }
 
         const daysMap = {};
 
         const daysInMonth = new Date(
           selectedYear,
           selectedMonth + 1,
-          0
+          0,
         ).getDate();
 
         data.forEach((item) => {
@@ -66,6 +70,7 @@ export default function Attendance() {
 
         const fullMonth = [];
         const today = new Date();
+        // today.setDate(today.getDate() + 1);
 
         const isCurrentMonth =
           selectedMonth === today.getMonth() &&
@@ -83,35 +88,55 @@ export default function Attendance() {
           });
         }
 
-        // 💰 BILL CALCULATION
-        let breakfastCount = 0;
-        let lunchCount = 0;
-        let dinnerCount = 0;
-
-        fullMonth.forEach((day) => {
-          if (day.breakfast) breakfastCount++;
-          if (day.lunch) lunchCount++;
-          if (day.dinner) dinnerCount++;
-        });
-
-        const breakfastTotal = breakfastCount * prices.breakfast;
-        const lunchTotal = lunchCount * prices.lunch;
-        const dinnerTotal = dinnerCount * prices.dinner;
-
-        setBill({
-          breakfast: breakfastTotal,
-          lunch: lunchTotal,
-          dinner: dinnerTotal,
-          total: breakfastTotal + lunchTotal + dinnerTotal,
-        });
-
         setAttendance(fullMonth);
       } catch (err) {
         console.log("Error fetching attendance", err);
       }
     };
 
+    const fetchBill = async () => {
+      try {
+        const token = localStorage.getItem("studentToken");
+
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/billing/my-dynamic`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+
+        const data = await res.json();
+
+        const monthKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const filtered = data.filter((b) => {
+          if (!b.date.startsWith(monthKey)) return false;
+
+          const billDate = new Date(b.date);
+          billDate.setHours(0, 0, 0, 0);
+
+          return billDate <= today; // ✅ only upto today
+        });
+
+        let total = 0;
+
+        filtered.forEach((b) => {
+          total += b.total;
+        });
+
+        setBill(parseFloat(total.toFixed(2)));
+      } catch (err) {
+        console.log("Error fetching bill", err);
+      }
+    };
+
     fetchAttendance();
+    fetchBill();
   }, [selectedMonth, selectedYear]);
 
   return (
@@ -129,7 +154,9 @@ export default function Attendance() {
             className="border p-2 rounded"
           >
             {months.map((m, i) => (
-              <option key={i} value={i}>{m}</option>
+              <option key={i} value={i}>
+                {m}
+              </option>
             ))}
           </select>
 
@@ -163,7 +190,6 @@ export default function Attendance() {
         <div className="flex items-end gap-5 h-64">
           {attendance.map((item) => (
             <div key={item.day} className="flex flex-col items-center">
-              
               {/* Bars */}
               <div className="flex flex-col-reverse items-center gap-0">
                 {item.breakfast && (
@@ -195,12 +221,8 @@ export default function Attendance() {
         <h2 className="text-xl font-semibold mb-3">💰 Monthly Bill</h2>
 
         <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>Breakfast: ₹{bill.breakfast}</div>
-          <div>Lunch: ₹{bill.lunch}</div>
-          <div>Dinner: ₹{bill.dinner}</div>
-
           <div className="col-span-2 font-bold text-lg mt-2">
-            Total: ₹{bill.total}
+            Total Bill: ₹{bill}
           </div>
         </div>
       </div>

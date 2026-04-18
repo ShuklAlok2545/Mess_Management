@@ -4,11 +4,14 @@ import { useNavigate } from "react-router-dom";
 
 export default function Reports() {
   const [report, setReport] = useState([]);
+  const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchReport = async () => {
-      const res = await fetch("http://localhost:4000/api/admin/report/today", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/report/today`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
         },
@@ -21,11 +24,38 @@ export default function Reports() {
     fetchReport();
   }, []);
 
+  const filteredReport = report.filter((r) =>
+    r.enrolment?.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  const indexOfLast = currentPage * itemsPerPage;
+  const indexOfFirst = indexOfLast - itemsPerPage;
+
+  const currentReport = filteredReport.slice(indexOfFirst, indexOfLast);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredReport.length / itemsPerPage),
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
   return (
     <AdminLayout>
       <h1 className="text-2xl font-bold mb-6">📅 Today's Report</h1>
 
       <div className="bg-white rounded-xl shadow overflow-hidden">
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Search by Enrollment"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="border p-2 rounded w-1/3"
+          />
+        </div>
         <table className="w-full text-sm">
           <thead className="bg-gray-100">
             <tr>
@@ -39,22 +69,50 @@ export default function Reports() {
           </thead>
 
           <tbody>
-            {report.map((r, i) => (
+            {filteredReport.length === 0 && (
+              <tr>
+                <td colSpan="6" className="text-center p-6 text-gray-500">
+                  No data found
+                </td>
+              </tr>
+            )}
+            {currentReport.map((r, i) => (
               <tr
                 key={i}
                 className="border-t hover:bg-purple-50 cursor-pointer"
                 onClick={() => navigate(`/admin/history/${r._id}`)}
               >
                 <td className="p-4 font-semibold">{r.name}</td>
-                <td>{r.enrolment}</td>
-                <td className="text-center">{r.breakfast}</td>
-                <td className="text-center">{r.lunch}</td>
-                <td className="text-center">{r.dinner}</td>
-                <td className="text-center font-bold">₹{r.total}</td>
+                <td className="p-4">{r.enrolment}</td>
+                <td className="text-center p-4">₹{r.breakfast}</td>
+                <td className="text-center p-4">₹{r.lunch}</td>
+                <td className="text-center p-4">₹{r.dinner}</td>
+                <td className="text-center font-bold p-4">₹{r.total}</td>
               </tr>
             ))}
           </tbody>
         </table>
+        <div className="flex justify-center items-center gap-4 p-4">
+          <button
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage((prev) => prev - 1)}
+            className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+          >
+            Prev
+          </button>
+
+          <span>
+            Page {currentPage} of {totalPages}
+          </span>
+
+          <button
+            disabled={currentPage >= totalPages}
+            onClick={() => setCurrentPage((prev) => prev + 1)}
+            className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </AdminLayout>
   );

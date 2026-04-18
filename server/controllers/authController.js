@@ -4,12 +4,17 @@ import User from "../models/User.js";
 import { sendOTPEmail } from "../utils/sendEmail.js";
 const tempUsers = {};
 import Admin from "../models/Admin.js";
+import { sendPendingEmail } from "../utils/sendEmail.js";
 
 // 🔢 Generate OTP
 const generateOTP = () =>
   Math.floor(100000 + Math.random() * 900000).toString();
 
 // 🟢 Signup
+
+
+
+
 export const signup = async (req, res) => {
   try {
     const {
@@ -23,6 +28,11 @@ export const signup = async (req, res) => {
       messCode,
     } = req.body;
 
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@nitsri\.ac\.in$/;
+
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Invalid email format" });
+    }
     let user = await User.findOne({ email });
     if (user) {
       return res.status(400).json({ message: "User already exists" });
@@ -30,11 +40,25 @@ export const signup = async (req, res) => {
 
     if (tempUsers[email]) {
       const otp = generateOTP();
-      tempUsers[email].otp = otp;
-      tempUsers[email].otpExpiry = Date.now() + 5 * 60 * 1000;
+      tempUsers[email] = {
+        fullName,
+        email,
+        hostelName,
+        enrolmentNumber,
+        roomNumber,
+        phone,
+        password: await bcrypt.hash(password, 10),
+        messCode, // ✅ UPDATED HERE
+        otp,
+        otpExpiry: Date.now() + 5 * 60 * 1000,
+      };
 
-      await sendOTPEmail(email, otp);
-      return res.json({ message: "OTP resent to email" });
+      try {
+        await sendOTPEmail(email, otp);
+      } catch (e) {
+        return res.status(500).json({ message: "Failed to send OTP email" });
+      }
+      return res.json({ message: "OTP resent with updated details" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -75,6 +99,12 @@ export const verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@nitsri\.ac\.in$/;
+
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Invalid email format" });
+    }
+
     const tempUser = tempUsers[email];
 
     if (!tempUser) {
@@ -94,6 +124,7 @@ export const verifyOTP = async (req, res) => {
     });
 
     if (!admin) {
+      delete tempUsers[email];
       return res.status(400).json({ message: "Invalid Mess Code" });
     }
 
@@ -106,8 +137,18 @@ export const verifyOTP = async (req, res) => {
       phone: tempUser.phone,
       password: tempUser.password,
       isVerified: true,
+      isApproved: false,
       messId: admin._id,
     });
+
+    try {
+      sendPendingEmail(
+        newUser.email,
+        "Your account has been created and is pending admin approval. You will be notified once approved.",
+      );
+    } catch (e) {
+      console.log("Pending email failed, continuing...");
+    }
 
     delete tempUsers[email];
     const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, {
@@ -148,6 +189,12 @@ export const login = async (req, res) => {
 
     if (!user.isVerified) {
       return res.status(400).json({ message: "Please verify OTP first" });
+    }
+
+    if (!user.isApproved) {
+      return res.status(403).json({
+        message: "Your account is pending admin approval",
+      });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -247,9 +294,11 @@ export const getStudentProfile = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const user = await User.findById(userId).select(
-      "fullName email hostelName enrolmentNumber roomNumber phone messId",
-    );
+    const user = await User.findById(userId)
+      .populate("messId", "messCode messName")
+      .select(
+        "fullName email hostelName enrolmentNumber roomNumber phone messId",
+      );
 
     res.json(user);
   } catch (err) {
@@ -257,3 +306,12 @@ export const getStudentProfile = async (req, res) => {
     res.status(500).json({ message: "Error fetching profile" });
   }
 };
+
+setInterval(() => {
+  const now = Date.now();
+  for (const email in tempUsers) {
+    if (tempUsers[email].otpExpiry < now) {
+      delete tempUsers[email];
+    }
+  }
+}, 60000);

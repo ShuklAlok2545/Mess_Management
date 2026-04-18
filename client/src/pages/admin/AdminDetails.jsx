@@ -7,7 +7,7 @@ export default function AdminDetails() {
   useEffect(() => {
   const fetchAdmin = async () => {
     try {
-      const res = await fetch("http://localhost:4000/api/admin/profile", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/profile`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
         },

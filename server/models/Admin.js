@@ -23,6 +23,12 @@ const adminSchema = new mongoose.Schema(
       unique: true,
       required: true,
     },
+    otp: {
+      type: String,
+    },
+    otpExpiry: {
+      type: Number,
+    },
   },
   { timestamps: true },
 );

@@ -26,7 +26,7 @@ export default function Navbar() {
         )}
 
         <span className="text-gray-700 font-medium">
-          {user?.name || user?.email || "User"}
+          {user?.fullName || user?.email || "User"}
         </span>
       </div>
     </div>

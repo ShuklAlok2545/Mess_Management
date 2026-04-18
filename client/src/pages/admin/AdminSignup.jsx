@@ -19,12 +19,15 @@ export default function AdminSignup() {
   };
 
   const sendOtp = async () => {
-    const res = await fetch("http://localhost:4000/api/admin/send-otp", {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/send-otp`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email: form.email }),
+      body: JSON.stringify({
+        email: form.email,
+        messName: form.messName,
+      }),
     });
 
     const data = await res.json();
@@ -39,7 +42,7 @@ export default function AdminSignup() {
   };
 
   const verifyOtp = async () => {
-    const res = await fetch("http://localhost:4000/api/admin/verify-otp", {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/verify-otp`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -74,12 +77,22 @@ export default function AdminSignup() {
               onChange={handleChange}
             />
 
-            <input
+            <select
               name="messName"
-              placeholder="Mess Name"
-              className="w-full mb-3 p-2 border rounded"
+              value={form.messName}
               onChange={handleChange}
-            />
+              className="w-full mb-3 p-2 border rounded"
+            >
+              <option value="">Select Mess</option>
+              <option value="Jhelum Mess">Jhelum Mess</option>
+              <option value="Jhelum Extension Mess">
+                Jhelum Extension Mess
+              </option>
+              <option value="Indus Mess">Indus Mess</option>
+              <option value="Chenab Mess">Chenab Mess</option>
+              <option value="PG Hostel Mess">PG Hostel Mess</option>
+              <option value="Girls Mess">Girls Mess</option>
+            </select>
 
             <input
               name="phoneNumber"

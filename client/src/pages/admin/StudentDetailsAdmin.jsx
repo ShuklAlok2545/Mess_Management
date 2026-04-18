@@ -8,7 +8,7 @@ export default function StudentDetailsAdmin() {
 
   useEffect(() => {
     const fetchStudent = async () => {
-      const res = await fetch("http://localhost:4000/api/admin/students", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/students`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
         },
