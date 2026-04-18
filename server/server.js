@@ -18,7 +18,10 @@ const app = express();
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: [
+      "http://localhost:5173",
+      "https://mess-management-navy.vercel.app",
+    ],
     credentials: true,
   })
 );
