@@ -776,11 +776,8 @@ export const adminForgotPassword = async (req, res) => {
 
     await sendOTPEmail(email, otp);
 
-    // adminController.js
-    console.log("SAVING OTP:", otp);
 
     const check = await Admin.findOne({ email });
-    console.log("DB AFTER SAVE:", check.otp);
 
     res.json({ message: "OTP sent to email" });
   } catch (err) {
@@ -800,9 +797,6 @@ export const adminResetPassword = async (req, res) => {
     }
 
     const enteredOtp = String(otp).trim();
-
-    console.log("DB OTP:", admin.otp);
-    console.log("Entered OTP:", enteredOtp);
 
     if (!admin.otp || admin.otp !== enteredOtp) {
       return res.status(400).json({ message: "Invalid OTP" });

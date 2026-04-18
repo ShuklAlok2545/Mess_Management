@@ -64,7 +64,6 @@ export const signup = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const otp = generateOTP();
-    console.log("Generated OTP:", otp);
 
     tempUsers[email] = {
       fullName,

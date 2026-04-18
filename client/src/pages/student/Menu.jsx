@@ -20,7 +20,7 @@ export default function Menu() {
 
       arr.push({
         day: d.toLocaleDateString("en-US", { weekday: "long" }),
-        date: d.toISOString().split("T")[0], // ✅ FIXED
+        date: d.toLocaleDateString("en-CA"), // ✅ FIXED
         displayDate: d.toLocaleDateString("en-IN", {
           day: "2-digit",
           month: "short",
@@ -105,9 +105,10 @@ export default function Menu() {
     today.setHours(0, 0, 0, 0);
     mealDate.setHours(0, 0, 0, 0);
 
-    mealDate.setDate(mealDate.getDate() - 1);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
 
-    return today >= mealDate;
+    return mealDate <= tomorrow;
   };
 
   // 🔁 toggle

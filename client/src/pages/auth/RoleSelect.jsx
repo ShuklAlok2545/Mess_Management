@@ -23,7 +23,6 @@ export default function RoleSelect() {
       }
     };
 
-    console.log("API URL:", import.meta.env.VITE_API_URL);
 
     fetchMesses();
   }, []);

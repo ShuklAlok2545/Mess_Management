@@ -20,7 +20,6 @@ export default function StudentHistory() {
           Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
         },
       });
-      console.log("Selected Month:", month);
 
       const data = await res.json();
       setMeals(Array.isArray(data) ? data : []);

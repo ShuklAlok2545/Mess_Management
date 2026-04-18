@@ -31,7 +31,6 @@ Valid for 5 minutes.
       `,
     });
 
-    console.log("OTP email sent successfully");
   } catch (err) {
     console.log("Email sending error:", err);
     throw err;
